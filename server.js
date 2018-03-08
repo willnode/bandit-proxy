@@ -1,104 +1,44 @@
-// const http = require('http');
-// const net = require('net');
-// const url = require('url');
+// Listen on a specific host via the HOST environment variable
+var host = process.env.HOST || '0.0.0.0';
+// Listen on a specific port via the PORT environment variable
+var port = process.env.PORT || 8080;
 
-// // Create an HTTP tunneling proxy
-// const proxy = http.createServer((req, res) => {
-//   res.writeHead(200, { 'Content-Type': 'text/plain' });
-//   res.end('okay');
-// });
+// Grab the blacklist from the command-line so that we can update the blacklist without deploying
+// again. CORS Anywhere is open by design, and this blacklist is not used, except for countering
+// immediate abuse (e.g. denial of service). If you want to block all origins except for some,
+// use originWhitelist instead.
+var originBlacklist = parseEnvList(process.env.CORSANYWHERE_BLACKLIST);
+var originWhitelist = parseEnvList(process.env.CORSANYWHERE_WHITELIST);
+function parseEnvList(env) {
+  if (!env) {
+    return [];
+  }
+  return env.split(',');
+}
 
-// proxy.on('connect', (req, cltSocket, head) => {
-//   // connect to an origin server
-//   const srvUrl = url.parse(`http://${req.url}`);
-//   const srvSocket = net.connect(srvUrl.port, srvUrl.hostname, () => {
-//     cltSocket.write('HTTP/1.1 200 Connection Established\r\n' +
-//                     'Proxy-agent: Node.js-Proxy\r\n' +
-//                     '\r\n');
-//     srvSocket.write(head);
-//     srvSocket.pipe(cltSocket);
-//     cltSocket.pipe(srvSocket);
-//   });
-// });
+// Set up rate-limiting to avoid abuse of the public CORS Anywhere server.
+var checkRateLimit = require('./lib/rate-limit')(process.env.CORSANYWHERE_RATELIMIT);
 
-// // now that proxy is running
-// proxy.listen(7070, '127.0.0.1', () => {
-
-//   // make a request to a tunneling proxy
-//   const options = {
-//     port: 7070,
-//     hostname: '127.0.0.1',
-//     method: 'CONNECT',
-//     path: 'www.google.com:80'
-//   };
-
-//   const req = http.request(options);
-//   req.end();
-
-//   req.on('connect', (res, socket, head) => {
-//     console.log('got connected!');
-
-//     // make a request over an HTTP tunnel
-//     socket.write('GET / HTTP/1.1\r\n' +
-//                  'Host: www.google.com:80\r\n' +
-//                  'Connection: close\r\n' +
-//                  '\r\n');
-//     socket.on('data', (chunk) => {
-//       console.log(chunk.toString());
-//     });
-//     socket.on('end', () => {
-//       proxy.close();
-//     });
-//   });
-// });
-
-// //import { IncomingMessage } from 'http';
-
-var fs = require('fs');
-var net = require('net');
-var http = require('http');
-var https = require('https');
-
-var baseAddress = 7070;
-var redirectAddress = 7071;
-var httpsAddress = 7072;
-var httpsOptions = {
-  key: fs.readFileSync('./ssl/ssl_key.pem'),
-  cert: fs.readFileSync('./ssl/ssl_cert.pem'),
-  passphrase: "password"
-};
-
-net.createServer((conn) => {
-  conn.once('data', function (buf) {
-
-    var address = (buf[0] < 32 || buf[0] >= 127) ? httpsAddress : redirectAddress;
-    var proxy = net.createConnection(address, function () {
-      // if (buf[0] == 67) {
-      //  // console.log(buf[0]);
-      //   conn.write('HTTP/1.1 200 Connection Established\r\n' +
-      //     'Proxy-agent: Node.js-Proxy\r\n' +
-      //     'Connection: close\r\n\r\nDummydummy'
-      //     );
-      //   conn.end();
-      // } else
-      {
-        proxy.write(buf);
-        conn.pipe(proxy).pipe(conn);
-      }
-    });
-  });
-}).listen(baseAddress);
-
-http.createServer((req, res) => {
-  console.log(req.method);
-  res.writeHead(200, { 'Content-Length': '4' });
-  res.end('HTTP');
-}).listen(redirectAddress);
-
-https.createServer(httpsOptions, (req, res) => {
-  console.log(req.method);
-  console.log("SSS");
-
-  res.writeHead(200, { 'Content-Length': '5' });
-  res.end('HTTPS');
-}).listen(httpsAddress);
+var cors_proxy = require('./lib/cors-anywhere');
+cors_proxy.createServer({
+  originBlacklist: originBlacklist,
+  originWhitelist: originWhitelist,
+  requireHeader: ['origin', 'x-requested-with'],
+  checkRateLimit: checkRateLimit,
+  removeHeaders: [
+    'cookie',
+    'cookie2',
+    // Strip Heroku-specific headers
+    'x-heroku-queue-wait-time',
+    'x-heroku-queue-depth',
+    'x-heroku-dynos-in-use',
+    'x-request-start',
+  ],
+  redirectSameOrigin: true,
+  httpProxyOptions: {
+    // Do not add X-Forwarded-For, etc. headers, because Heroku already adds it.
+    xfwd: false,
+  },
+}).listen(port, host, function() {
+  console.log('Running CORS Anywhere on ' + host + ':' + port);
+});
