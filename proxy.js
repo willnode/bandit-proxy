@@ -1,6 +1,7 @@
 var httpProxy = require('http-proxy');
 var net = require('net');
 var url = require('url');
+var insensitiveObject = require('./insensitive-object');
 
 /**
  * Bandit proxy options
@@ -16,8 +17,12 @@ var url = require('url');
  * @param {ProxyOptions} options custom headers upon sending
  */
 exports.createServer = function (options) {
-    options = options || {};
-    options.headers = options.headers || {};
+    options = Object.assign({
+        headers: {},
+        redirects: 10,
+        fixheads: true,
+        httpProxy: {},
+    }, options || {});
 
     var proxy = httpProxy.createServer(options.httpProxy);
     var requestHandler = getHandler(options, proxy);
@@ -62,6 +67,8 @@ function getHandler(options, proxy) {
             res.end('Something wrong with your request.');
             return;
         }
+
+        req.headers = injectRequest(req.headers);
 
         proxyRequest(req, res, options, proxy, {
             times: 0,
@@ -192,6 +199,35 @@ function onProxyResponse(req, res, options, proxy, proxyReq, proxyRes, state) {
 
     // proxyRes.headers['x-final-url'] = state.url.href;
     // withCORS(proxyRes.headers, req);
-    proxyRes.headers = Object.assign(proxyRes.headers, options.headers);
+    proxyRes.headers = injectResponse(proxyRes.headers, options.headers);
     return true;
 }
+
+/**
+ *
+ * @param {Object} target
+ * @param {Object} source
+ */
+var injectResponse = function (target, source) {
+   return insensitiveObject.assign(target, source);
+}
+
+var injectRequest = function (target) {
+    if (insensitiveObject.get(target, 'x--custom')) {
+        // clear all requests that have no `x--` in beginning
+        for (const key in target) {
+            if (!/[xX]--/.test(key)) {
+                delete target[key];
+            }
+        }
+    }
+    for (const key in target) {
+        if (/[xX]--/.test(key)) {
+            var alias = key.substring(3);
+            insensitiveObject.set(target, alias, target[key]);
+            delete target[key];
+        }
+    }
+    return target;
+}
+
