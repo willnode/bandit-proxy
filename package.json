@@ -1,18 +1,15 @@
 {
-  "name": "cors-proxy",
-  "version": "0.1.0",
+  "name": "bandit-proxy",
+  "version": "0.2.0",
   "main": "server.js",
   "author": "willnode",
   "license": "MIT",
   "private": false,
   "dependencies": {
-    "case": "^1.5.4",
-    "express": "^4.16.2",
     "http-proxy": "^1.16.2",
-    "httpolyglot": "^0.1.2",
-    "https-proxy-agent": "^2.2.0",
-    "proxy-from-env": "^1.0.0",
-    "request": "^2.83.0",
-    "url-parse": "^1.2.0"
+    "proxy-from-env": "^1.0.0"
+  },
+  "scripts": {
+    "start": "node server"
   }
 }

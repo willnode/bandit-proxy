@@ -172,7 +172,7 @@ function onProxyResponse(req, res, options, proxy, proxyReq, proxyRes, state) {
                     // Handle redirects within the server, because some clients (e.g. Android Stock Browser)
                     // cancel redirects.
                     // Set header for debugging purposes. Do not try to parse it!
-                    res.setHeader('X-CORS-Redirect-' + state.times, statusCode + ' ' + locationHeader);
+                    res.setHeader('x-redirect-' + state.times, statusCode + ' ' + locationHeader);
 
                     req.method = 'GET';
                     req.headers['content-length'] = '0';
@@ -197,8 +197,7 @@ function onProxyResponse(req, res, options, proxy, proxyReq, proxyRes, state) {
         }
     }
 
-    // proxyRes.headers['x-final-url'] = state.url.href;
-    // withCORS(proxyRes.headers, req);
+    proxyRes.headers['x-head-raw'] = JSON.stringify(proxyRes.headers);
     proxyRes.headers = injectResponse(proxyRes.headers, options.headers);
     return true;
 }
