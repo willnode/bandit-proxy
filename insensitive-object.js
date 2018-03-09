@@ -21,7 +21,7 @@ function get(object, key) {
  * Get object value
  * @param {{}} object - the source object
  * @param {string} key - the case-insensitive property name
- * @param {*} key - value to be set
+ * @param {*} value - value to be set (undefined === delete)
  * @param {boolean} [keepGoing] - don't quit after first match found
  * @param {boolean} [keepOriginalCasing] - preserve original casing (keepGoing should off too)
  * @return {Object} the source object
@@ -34,8 +34,12 @@ function set(object, key, value, keepGoing, keepOriginalCasing) {
     for (let i = 0; i < keys.length; i++) {
         const el = keys[i];
         if (el.length === key.length && el.toUpperCase() === keyup) {
-            if (keepOriginalCasing || el === key)
-                object[el] = value;
+            if (keepOriginalCasing || el === key) {
+                if (value === undefined)
+                    delete object[el];
+                else
+                    object[el] = value;
+            }
             else {
                 if (object[el] !== undefined)
                     delete object[el];

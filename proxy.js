@@ -197,7 +197,7 @@ function onProxyResponse(req, res, options, proxy, proxyReq, proxyRes, state) {
         }
     }
 
-    proxyRes.headers['x-head-raw'] = JSON.stringify(proxyRes.headers);
+    proxyRes.headers['x-raw-head'] = JSON.stringify(proxyRes.headers);
     proxyRes.headers = injectResponse(proxyRes.headers, options.headers);
     return true;
 }
@@ -218,6 +218,7 @@ var injectRequest = function (target) {
             if (!/[xX]--/.test(key)) {
                 delete target[key];
             }
+            insensitiveObject.remove(target, 'x--custom');
         }
     }
     for (const key in target) {

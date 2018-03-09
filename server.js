@@ -7,6 +7,7 @@ require('./proxy').createServer({
   headers: {
     'access-control-allow-origin': '*',
     'access-control-allow-headers': '*', // only supported by chrome 63+
+    'access-control-expose-headers': '*, x-raw-head', // only supported by chrome 63+
     'access-control-allow-options': 'get, post, put, delete, options',
     'cache-control': 'no-store, must-revalidate'
   }
